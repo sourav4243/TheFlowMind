@@ -147,28 +147,41 @@ export const Canvas = ({boardId} : CanvasProps) => {
     }, []);
 
 
-    // update selection net
-    const updateSelectionNet = useMutation((
+    // apply selection net
+    const applySelectionNet = useMutation((
         { storage, setMyPresence },
         current: Point, 
         origin: Point,
     ) => {
         const layers = storage.get("layers").toImmutable();
+        const ids = findIntersectingLayersWithRectangle(layerIds, layers, origin, current);
+        setMyPresence({ selection: ids });
+    }, [layerIds]);
+
+    // apply lasso selection
+    const applyLassoSelection = useMutation((
+        { storage, setMyPresence },
+        points: Point[],
+    ) => {
+        const layers = storage.get("layers").toImmutable();
+        const ids = findIntersectingLayersWithLasso(layerIds, layers, points);
+        setMyPresence({ selection: ids });
+    }, [layerIds]);
+
+    // update selection net
+    const updateSelectionNet = useCallback((
+        current: Point, 
+        origin: Point,
+    ) => {
         setCanvasState({
             mode: CanvasMode.SelectionNet,
             origin: origin, 
             current: current,
         });
-
-        const ids = findIntersectingLayersWithRectangle(layerIds, layers, origin, current);
-
-        setMyPresence({ selection: ids });
-    }, [layerIds]);
-
+    }, []);
 
     // update lasso selection
-    const updateLassoSelection = useMutation((
-        { storage, setMyPresence },
+    const updateLassoSelection = useCallback((
         current: Point,
     ) => {
         if (canvasStateRef.current.mode !== CanvasMode.LassoSelection) return;
@@ -183,12 +196,8 @@ export const Canvas = ({boardId} : CanvasProps) => {
                 mode: CanvasMode.LassoSelection,
                 points: newPoints,
             });
-
-            const layers = storage.get("layers").toImmutable();
-            const ids = findIntersectingLayersWithLasso(layerIds, layers, newPoints);
-            setMyPresence({ selection: ids });
         }
-    }, [layerIds]);
+    }, []);
 
     // multi layer selection
     const startMultiSelection = useCallback((
@@ -433,7 +442,13 @@ export const Canvas = ({boardId} : CanvasProps) => {
             setCanvasState({
                 mode: CanvasMode.None,
             });
+        } else if (canvasState.mode === CanvasMode.SelectionNet) {
+            applySelectionNet(canvasState.current || point, canvasState.origin);
+            setCanvasState({
+                mode: CanvasMode.None,
+            });
         } else if (canvasState.mode === CanvasMode.LassoSelection) {
+            applyLassoSelection(canvasState.points);
             setCanvasState({
                 mode: CanvasMode.LassoSelection,
                 points: [],
@@ -459,8 +474,7 @@ export const Canvas = ({boardId} : CanvasProps) => {
         }
 
         history.resume();
-    },
-    [
+    }, [
         camera,
         canvasState,
         setCanvasState,
@@ -468,6 +482,8 @@ export const Canvas = ({boardId} : CanvasProps) => {
         insertLayer,
         insertPath,
         unselectLayers,
+        applySelectionNet,
+        applyLassoSelection,
     ]);
 
     // A function to allow selecting any layer/shape
