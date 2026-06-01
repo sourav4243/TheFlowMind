@@ -12,6 +12,7 @@ import {
     useStorage,
     useOthersMapped,
     useSelf,
+    useUpdateMyPresence,
 } from "@liveblocks/react";
 import { colorToCss, connectionIdToColor, findIntersectingLayersWithRectangle, penPointsToPathLayer, pointerEventToCanvasPoint, resizeBounds } from "@/lib/utils";
 import { Camera, CanvasMode, CanvasState, Color, LayerType, Point, Side, XYWH } from "@/types/canvas";
@@ -25,7 +26,7 @@ import { SelectionTools } from "./SelectionTools";
 import { LayerPreview } from "./LayerPreview"; 
 import { CursorPresense } from "./CursorsPresense";
 import { SelectionBox } from "./SelectionBox";
-import { Path } from "./Path";
+import { DraftLayer } from "./DraftLayer";
 
 
 const MAX_LAYERS = 200;
@@ -38,18 +39,19 @@ export const Canvas = ({boardId} : CanvasProps) => {
 
     const layerIds = useStorage((root) => root.layerIds);
 
-    const pencilDraft = useSelf((me) => me.presence.pencilDraft);
-
     const [canvasState, setCanvasState] = useState<CanvasState>({
         mode: CanvasMode.None,
     })
 
-    const [camera, setCamera] = useState<Camera>({x:0, y:0})
+    const [camera, setCamera] = useState<Camera>({x:0, y:0, scale: 1})
+    const [lastUsedPenSize, setLastUsedPenSize] = useState<number>(8);
     const [lastUsedColor, setLastUsedColor] = useState<Color>({
         r: 0,
         g: 0,
         b: 0,
     });
+    
+    const updateMyPresence = useUpdateMyPresence();
 
     useDisableScrollBounce();
     const history = useHistory();
@@ -88,6 +90,17 @@ export const Canvas = ({boardId} : CanvasProps) => {
         setCanvasState({ mode: CanvasMode.None });
     }, [lastUsedColor]);
 
+
+    const onChangeColor = useMutation((
+        { storage, self },
+        fill: Color,
+    ) => {
+        setLastUsedColor(fill);
+        const liveLayers = storage.get("layers");
+        self.presence.selection?.forEach((id) => {
+            liveLayers.get(id)?.set("fill", fill);
+        });
+    }, []);
 
     // translate layer logic
     const translateSelectedLayer = useMutation((
@@ -213,7 +226,10 @@ export const Canvas = ({boardId} : CanvasProps) => {
         const id = nanoid();
         liveLayers.set(
             id,
-            new LiveObject(penPointsToPathLayer(pencilDraft, lastUsedColor)),
+            new LiveObject({
+                ...penPointsToPathLayer(pencilDraft, lastUsedColor),
+                penSize: lastUsedPenSize,
+            }),
         );
 
         const liveLayerIds = storage.get("layerIds");
@@ -221,7 +237,7 @@ export const Canvas = ({boardId} : CanvasProps) => {
 
         setMyPresence({ pencilDraft: null });
         setCanvasState({ mode: CanvasMode.Pencil });
-    }, [lastUsedColor]);
+    }, [lastUsedColor, lastUsedPenSize]);
 
     // resize logic
     const resizeSelectedLayer = useMutation((
@@ -257,14 +273,52 @@ export const Canvas = ({boardId} : CanvasProps) => {
         });
     }, [history]);
 
+    const eraseIntersecting = useMutation((
+        { storage },
+        point: Point,
+    ) => {
+        const liveLayers = storage.get("layers");
+        const liveLayerIds = storage.get("layerIds");
+        const scale = camera.scale || 1;
+        const eraserSize = 10 / scale;
+        const origin = { x: point.x - eraserSize, y: point.y - eraserSize };
+        const current = { x: point.x + eraserSize, y: point.y + eraserSize };
+        
+        const intersectingIds = findIntersectingLayersWithRectangle(
+            liveLayerIds.toArray(),
+            liveLayers.toImmutable(),
+            origin,
+            current
+        );
+        
+        if (intersectingIds && intersectingIds.length > 0) {
+            for (const id of intersectingIds) {
+                liveLayers.delete(id);
+                const index = liveLayerIds.indexOf(id);
+                if (index !== -1) {
+                    liveLayerIds.delete(index);
+                }
+            }
+        }
+    }, [camera.scale]);
+
     const onWheel = useCallback((e: React.WheelEvent) => {
-        setCamera((camera) => ({
-            x: camera.x - e.deltaX,
-            y: camera.y - e.deltaY
-        }));
+        setCamera((camera) => {
+            const scaleAdjust = e.deltaY * -0.005;
+            const newScale = Math.min(Math.max((camera.scale || 1) + scaleAdjust, 0.1), 5); 
+            
+            const canvasPointX = (e.clientX - camera.x) / (camera.scale || 1);
+            const canvasPointY = (e.clientY - camera.y) / (camera.scale || 1);
+            
+            return {
+                x: e.clientX - canvasPointX * newScale,
+                y: e.clientY - canvasPointY * newScale,
+                scale: newScale
+            };
+        });
     }, []);
 
-    const onPointerMove = useMutation(({ setMyPresence }, e: React.PointerEvent) => {
+    const onPointerMove = useCallback((e: React.PointerEvent) => {
         e.preventDefault();
 
         const current = pointerEventToCanvasPoint(e, camera)
@@ -276,20 +330,36 @@ export const Canvas = ({boardId} : CanvasProps) => {
             translateSelectedLayer(current);
         } else if (canvasState.mode === CanvasMode.Resizing) {
             resizeSelectedLayer(current);
+        } else if (canvasState.mode === CanvasMode.Eraser) {
+            if (e.buttons === 1) {
+                eraseIntersecting(current);
+            }
         } else if (canvasState.mode === CanvasMode.Pencil) {
             continueDrawing(current, e);
+        } else if (canvasState.mode === CanvasMode.TranslatingCamera) {
+            setCamera((camera) => ({
+                x: camera.x + e.movementX,
+                y: camera.y + e.movementY,
+                scale: camera.scale
+            }));
+            return;
         }
 
-        setMyPresence({ cursor: current });
-    }, [camera, canvasState, startMultiSelection, translateSelectedLayer, updateSelectionNet, resizeSelectedLayer, continueDrawing]);
+        updateMyPresence({ cursor: current });
+    }, [camera, canvasState, startMultiSelection, translateSelectedLayer, updateSelectionNet, resizeSelectedLayer, eraseIntersecting, continueDrawing, updateMyPresence]);
 
-    const onPointerLeave = useMutation(({ setMyPresence }) => {
-        setMyPresence({ cursor: null });
-    }, []);
+    const onPointerLeave = useCallback(() => {
+        updateMyPresence({ cursor: null });
+    }, [updateMyPresence]);
 
 
     const onPointerDown = useCallback((e: React.PointerEvent) => {
         const point = pointerEventToCanvasPoint(e, camera);
+
+        if (e.button === 2 || e.button === 1) {
+            setCanvasState({ mode: CanvasMode.TranslatingCamera, origin: point, current: point });
+            return;
+        }
 
         if (canvasState.mode === CanvasMode.Inserting) {
             return;
@@ -300,13 +370,17 @@ export const Canvas = ({boardId} : CanvasProps) => {
             return;
         }
 
+        if (canvasState.mode === CanvasMode.Eraser) {
+            eraseIntersecting(point);
+            return;
+        }
+
         setCanvasState({ origin: point, mode: CanvasMode.Pressing });
-    }, [camera, canvasState.mode, setCanvasState, startDrawing]);
+    }, [camera, canvasState.mode, setCanvasState, startDrawing, eraseIntersecting]);
 
     // when pointer is up, call insertLayer() function
-    const onPointerUp = useMutation((
-        {},
-        e
+    const onPointerUp = useCallback((
+        e: React.PointerEvent
     ) => {
         const point = pointerEventToCanvasPoint(e, camera);
         if (canvasState.mode === CanvasMode.Pressing || canvasState.mode === CanvasMode.None) {
@@ -344,7 +418,9 @@ export const Canvas = ({boardId} : CanvasProps) => {
     ) => {
         if (
             canvasState.mode === CanvasMode.Pencil ||
-            canvasState.mode === CanvasMode.Inserting
+            canvasState.mode === CanvasMode.Inserting ||
+            e.button === 2 ||
+            e.button === 1
         ) {
             return;
         }
@@ -422,6 +498,10 @@ export const Canvas = ({boardId} : CanvasProps) => {
         }
     }, [deleteLayers, history]);
 
+    const gridSize = 30 * (camera.scale || 1);
+    const gridOffsetX = camera.x % gridSize;
+    const gridOffsetY = camera.y % gridSize;
+
     return (
         <main className="h-full w-full relative bg-neutral-100 touch-none">
             <Info boardId={boardId}/>
@@ -433,11 +513,14 @@ export const Canvas = ({boardId} : CanvasProps) => {
                 canRedo={canRedo}
                 undo={history.undo}
                 redo={history.redo}
+                lastUsedPenSize={lastUsedPenSize}
+                setLastUsedPenSize={setLastUsedPenSize}
+                setLastUsedColor={onChangeColor}
             />
 
             <SelectionTools
                 camera={camera}
-                setLastUsedColor={setLastUsedColor}
+                setLastUsedColor={onChangeColor}
             />
 
             {/* svg is scalable vector graphics coontainer. shapes never blur on zoom.. as vector based, not pixel images*/}
@@ -448,11 +531,33 @@ export const Canvas = ({boardId} : CanvasProps) => {
                 onPointerLeave={onPointerLeave}
                 onPointerUp={onPointerUp}
                 onPointerDown={onPointerDown}
+                onContextMenu={(e) => e.preventDefault()}
+                style={{
+                    cursor: canvasState.mode === CanvasMode.Pencil 
+                        ? `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>') 0 24, crosshair`
+                        : canvasState.mode === CanvasMode.Eraser
+                            ? `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"></path><path d="M22 21H7"></path><path d="m5 11 9 9"></path></svg>') 0 24, cell`
+                            : undefined
+                }}
             >
-                {/* g tag is for grouping */}
+                <defs>
+                    <pattern
+                        id="grid-pattern"
+                        width={gridSize}
+                        height={gridSize}
+                        patternUnits="userSpaceOnUse"
+                        x={gridOffsetX}
+                        y={gridOffsetY}
+                    >
+                        <path d={`M ${gridSize} 0 L 0 0 L 0 ${gridSize}`} fill="none" stroke="#e5e7eb" strokeWidth="1" />
+                    </pattern>
+                </defs>
+                
+                <rect width="100%" height="100%" fill="url(#grid-pattern)" />
+
                 <g
                     style={{
-                        transform: `translate(${camera.x}px, ${camera.y}px)`
+                        transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.scale || 1})`
                     }}
                 >
                     {layerIds?.map((layerId) => (
@@ -480,14 +585,7 @@ export const Canvas = ({boardId} : CanvasProps) => {
 
                     <CursorPresense/>
 
-                    {pencilDraft != null && pencilDraft.length > 0 && (
-                        <Path
-                            x={0}
-                            y={0}
-                            points={pencilDraft}
-                            fill={colorToCss(lastUsedColor)}
-                        />
-                    )}
+                    <DraftLayer lastUsedColor={lastUsedColor} penSize={lastUsedPenSize} />
                 </g>
             </svg>
         </main>      
