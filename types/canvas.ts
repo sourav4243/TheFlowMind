@@ -26,6 +26,7 @@ export type RectangleLayer = {
     width: number;
     fill: Color;
     value?:string;
+    cornerRadius?: number;
 };
 
 export type EllipseLayer = {
@@ -110,6 +111,7 @@ export type CanvasState =
     |   {
             mode: CanvasMode.Inserting,
             layerType: LayerType.Ellipse | LayerType.Rectangle | LayerType.Text | LayerType.Note;
+            cornerRadius?: number;
         }
     |   {
             mode: CanvasMode.Resizing

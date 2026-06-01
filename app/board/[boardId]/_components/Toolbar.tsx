@@ -1,4 +1,4 @@
-import { Circle, MousePointer2, Pencil, Redo2, Square, StickyNote, Type, Undo2, Eraser, LassoSelect } from "lucide-react";
+import { Circle, MousePointer2, Pencil, Redo2, Square, StickyNote, Type, Undo2, Eraser, LassoSelect, Squircle } from "lucide-react";
 
 import { ToolButton } from "./ToolButton";
 import { ColorPicker, PenColorPicker } from "./ColorPicker";
@@ -81,6 +81,7 @@ export const Toolbar = ({
                     onClick={()  => setCanvasState({
                         mode: CanvasMode.Inserting,
                         layerType: LayerType.Rectangle,
+                        cornerRadius: 5,
                     })}
                     isActive={
                         canvasState.mode === CanvasMode.Inserting &&
@@ -153,6 +154,31 @@ export const Toolbar = ({
             {canvasState.mode === CanvasMode.Pencil && (
                 <div className="absolute left-full ml-2 top-[160px] bg-white rounded-md p-3 shadow-md flex flex-col gap-y-2">
                     <PenColorPicker onChange={setLastUsedColor} />
+                </div>
+            )}
+
+            {canvasState.mode === CanvasMode.Inserting && canvasState.layerType === LayerType.Rectangle && (
+                <div className="absolute left-full ml-2 top-[160px] bg-white rounded-md p-1.5 shadow-md flex flex-col gap-y-1">
+                    <ToolButton 
+                        label="Rectangle"
+                        icon={Square}
+                        onClick={() => setCanvasState({
+                            mode: CanvasMode.Inserting,
+                            layerType: LayerType.Rectangle,
+                            cornerRadius: 5,
+                        })}
+                        isActive={canvasState.cornerRadius === 5 || canvasState.cornerRadius === undefined}
+                    />
+                    <ToolButton 
+                        label="Rounded Rectangle"
+                        icon={Squircle}
+                        onClick={() => setCanvasState({
+                            mode: CanvasMode.Inserting,
+                            layerType: LayerType.Rectangle,
+                            cornerRadius: 20,
+                        })}
+                        isActive={canvasState.cornerRadius === 20}
+                    />
                 </div>
             )}
         </div>

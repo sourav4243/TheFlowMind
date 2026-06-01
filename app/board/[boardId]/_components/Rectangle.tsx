@@ -14,7 +14,11 @@ export const Rectangle = ({
     onPointerDown, 
     selectionColor,
 }: RectangleProps) => {
-    const { x, y, width, height, fill } = layer;
+    const { x, y, width, height, fill, cornerRadius } = layer;
+
+    const isRounded = cornerRadius === 20;
+    const fillColor = fill ? colorToCss(fill) : "#000";
+    const transparentFill = fill ? `rgba(${fill.r}, ${fill.g}, ${fill.b}, 0.15)` : "rgba(0,0,0,0.15)";
 
     return (
         <rect
@@ -25,12 +29,12 @@ export const Rectangle = ({
             }}
             x={0}
             y={0}
-            rx={5}
+            rx={cornerRadius !== undefined ? cornerRadius : 5}
             width={width}
             height={height}
-            strokeWidth={1}
-            fill={fill ? colorToCss(fill) : "#000"}
-            stroke={selectionColor || "transparent"}
+            strokeWidth={isRounded ? 2 : 1}
+            fill={isRounded ? transparentFill : fillColor}
+            stroke={selectionColor || (isRounded ? fillColor : "transparent")}
         />
     )
 }

@@ -15,7 +15,7 @@ import {
     useUpdateMyPresence,
 } from "@liveblocks/react";
 import { colorToCss, connectionIdToColor, findIntersectingLayersWithRectangle, findIntersectingLayersWithLasso, penPointsToPathLayer, pointerEventToCanvasPoint, resizeBounds } from "@/lib/utils";
-import { Camera, CanvasMode, CanvasState, Color, LayerType, Point, Side, XYWH } from "@/types/canvas";
+import { Camera, CanvasMode, CanvasState, Color, Layer, LayerType, Point, Side, XYWH } from "@/types/canvas";
 import { useDisableScrollBounce } from "@/hooks/use-disable-scroll-debounce";
 import { useDeleteLayers } from "@/hooks/use-delete-layers";
 
@@ -69,6 +69,7 @@ export const Canvas = ({boardId} : CanvasProps) => {
         { storage, setMyPresence }, 
         layerType: LayerType.Ellipse | LayerType.Rectangle | LayerType.Text | LayerType.Note,
         position: Point,
+        cornerRadius?: number,
     ) => {
         const liveLayers = storage.get("layers");
         if(liveLayers.size >= MAX_LAYERS) {
@@ -87,7 +88,8 @@ export const Canvas = ({boardId} : CanvasProps) => {
             height: 100,
             width: 100,
             fill: lastUsedColor,
-        })
+            ...(cornerRadius !== undefined ? { cornerRadius } : {}),
+        } as Layer)
 
         liveLayerIds.push(layerId);
         liveLayers.set(layerId, layer);
@@ -456,7 +458,7 @@ export const Canvas = ({boardId} : CanvasProps) => {
         } else if (canvasState.mode ===  CanvasMode.Pencil) {
             insertPath();
         } else if (canvasState.mode === CanvasMode.Inserting) {
-            insertLayer(canvasState.layerType, point);
+            insertLayer(canvasState.layerType, point, canvasState.cornerRadius);
         } else if (canvasState.mode === CanvasMode.TranslatingCamera) {
             if (canvasState.previousMode === CanvasMode.Inserting && canvasState.previousLayerType) {
                 setCanvasState({ mode: CanvasMode.Inserting, layerType: canvasState.previousLayerType });
