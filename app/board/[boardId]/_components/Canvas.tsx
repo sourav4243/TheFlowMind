@@ -357,7 +357,13 @@ export const Canvas = ({boardId} : CanvasProps) => {
         const point = pointerEventToCanvasPoint(e, camera);
 
         if (e.button === 2 || e.button === 1) {
-            setCanvasState({ mode: CanvasMode.TranslatingCamera, origin: point, current: point });
+            setCanvasState({ 
+                mode: CanvasMode.TranslatingCamera, 
+                origin: point, 
+                current: point,
+                previousMode: canvasState.mode,
+                ...(canvasState.mode === CanvasMode.Inserting ? { previousLayerType: canvasState.layerType } : {})
+            });
             return;
         }
 
@@ -392,6 +398,16 @@ export const Canvas = ({boardId} : CanvasProps) => {
             insertPath();
         } else if (canvasState.mode === CanvasMode.Inserting) {
             insertLayer(canvasState.layerType, point);
+        } else if (canvasState.mode === CanvasMode.TranslatingCamera) {
+            if (canvasState.previousMode === CanvasMode.Inserting && canvasState.previousLayerType) {
+                setCanvasState({ mode: CanvasMode.Inserting, layerType: canvasState.previousLayerType });
+            } else if (canvasState.previousMode === CanvasMode.Pencil) {
+                setCanvasState({ mode: CanvasMode.Pencil });
+            } else if (canvasState.previousMode === CanvasMode.Eraser) {
+                setCanvasState({ mode: CanvasMode.Eraser });
+            } else {
+                setCanvasState({ mode: CanvasMode.None });
+            }
         } else {
             setCanvasState({
                 mode: CanvasMode.None,

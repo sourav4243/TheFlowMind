@@ -126,6 +126,8 @@ export type CanvasState =
             mode: CanvasMode.TranslatingCamera;
             origin: Point;
             current: Point;
+            previousMode?: CanvasMode;
+            previousLayerType?: LayerType.Ellipse | LayerType.Rectangle | LayerType.Text | LayerType.Note;
     };
 
 export enum CanvasMode {
