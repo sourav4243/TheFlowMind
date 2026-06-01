@@ -29,7 +29,7 @@ import { SelectionBox } from "./SelectionBox";
 import { DraftLayer } from "./DraftLayer";
 
 
-const MAX_LAYERS = 200;
+const MAX_LAYERS = 5000;
 
 interface CanvasProps {
     boardId: string;
