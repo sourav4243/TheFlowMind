@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { useSelf, useMutation } from "@liveblocks/react";
 import { useDeleteLayers } from "@/hooks/use-delete-layers";
 import { useSelectionBounds } from "@/hooks/use-selection-bounds";
-
 import { ColorPicker } from "./ColorPicker";
 
 interface SelectionToolsProps {
@@ -110,12 +109,13 @@ export const SelectionTools = memo(({
         return null;
     }
 
-    const x = selectionBounds.width/2 + selectionBounds.x + camera.x;
-    const y = selectionBounds.y + camera.y;
+    const scale = camera.scale || 1;
+    const x = (selectionBounds.width / 2 + selectionBounds.x) * scale + camera.x;
+    const y = selectionBounds.y * scale + camera.y;
 
     return (
         <div 
-            className="absolute p-3 rounded-xl bg-white shadow-sm border-transparent flex select-none"
+            className="absolute top-0 left-0 p-3 rounded-xl bg-white shadow-sm border border-neutral-200 flex select-none items-center"
             style={{
                 transform: `translate(
                     calc(${x}px - 50%),
@@ -123,11 +123,8 @@ export const SelectionTools = memo(({
                 )`
             }}    
         >
-            <ColorPicker
-                onChange={setFill}
-            />
-
-            <div className="flex flex-col gap-y-0.5">
+            <ColorPicker onChange={setFill} />
+            <div className="flex flex-col gap-y-0.5 pl-2 ml-2 border-l border-neutral-200">
                 <Hint label="Bring to front">
                     <Button
                         variant="board"

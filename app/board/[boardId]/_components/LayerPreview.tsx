@@ -42,6 +42,7 @@ export const LayerPreview = memo(({
                     points={layer.points}
                     onPointerDown={(e) => onLayerPointerDown(e, id)}
                     stroke={selectionColor}
+                    penSize={layer.penSize}
                 />
             )
         case LayerType.Note:

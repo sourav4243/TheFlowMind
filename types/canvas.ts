@@ -7,6 +7,7 @@ export type Color = {
 export type Camera = {
     x: number;
     y: number;
+    scale?: number;
 };
 
 export enum LayerType{
@@ -45,6 +46,7 @@ export type PathLayer = {
     width: number;
     fill: Color;
     points: number[][];
+    penSize?: number;
     value?:string;
 };
 
@@ -116,7 +118,21 @@ export type CanvasState =
         }
     |   {
             mode: CanvasMode.Pencil
-    };
+        }
+    |   {
+            mode: CanvasMode.Eraser
+        }
+    |   {
+            mode: CanvasMode.TranslatingCamera;
+            origin: Point;
+            current: Point;
+            previousMode?: CanvasMode;
+            previousLayerType?: LayerType.Ellipse | LayerType.Rectangle | LayerType.Text | LayerType.Note;
+        }
+    |   {
+            mode: CanvasMode.LassoSelection;
+            points: Point[];
+        };
 
 export enum CanvasMode {
     None,
@@ -126,6 +142,9 @@ export enum CanvasMode {
     Inserting,
     Resizing,
     Pencil,
+    Eraser,
+    TranslatingCamera,
+    LassoSelection,
 };
 
 export type Layer = EllipseLayer | RectangleLayer | PathLayer | TextLayer | NoteLayer;
