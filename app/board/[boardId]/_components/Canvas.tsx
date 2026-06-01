@@ -310,7 +310,7 @@ export const Canvas = ({boardId} : CanvasProps) => {
 
     const onWheel = useCallback((e: React.WheelEvent) => {
         setCamera((camera) => {
-            const scaleAdjust = e.deltaY * -0.005;
+            const scaleAdjust = e.deltaY * -0.001;
             const newScale = Math.min(Math.max((camera.scale || 1) + scaleAdjust, 0.1), 5); 
             
             const canvasPointX = (e.clientX - camera.x) / (camera.scale || 1);
