@@ -457,6 +457,23 @@ export const Canvas = ({boardId} : CanvasProps) => {
         canvasState.mode,
     ]);
 
+    const onSelectionPointerDown = useCallback((e: React.PointerEvent) => {
+        if (
+            canvasState.mode === CanvasMode.Pencil ||
+            canvasState.mode === CanvasMode.Inserting ||
+            e.button === 2 ||
+            e.button === 1
+        ) {
+            return;
+        }
+
+        history.pause();
+        e.stopPropagation();
+
+        const point = pointerEventToCanvasPoint(e, camera);
+        setCanvasState({ mode: CanvasMode.Translating, current: point });
+    }, [canvasState.mode, camera, history, setCanvasState]);
+
     const selections = useOthersMapped((otherUser) => otherUser.presence.selection);
 
     const layerIdsToColorSelection = useMemo(() => {
@@ -587,6 +604,7 @@ export const Canvas = ({boardId} : CanvasProps) => {
 
                     <SelectionBox
                         onResizeHandlePointerDown={onResizeHandlePointerDown}
+                        onSelectionPointerDown={onSelectionPointerDown}
                     />
 
                     {canvasState.mode === CanvasMode.SelectionNet && canvasState.current != null && (

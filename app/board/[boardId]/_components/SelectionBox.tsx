@@ -8,11 +8,12 @@ import { useSelectionBounds } from "@/hooks/use-selection-bounds";
 
 interface SelectionBoxProps {
     onResizeHandlePointerDown: (corner: Side, initialBounds: XYWH) => void;
+    onSelectionPointerDown: (e: React.PointerEvent) => void;
 };
 
 const HANDLE_WIDTH = 8;
 
-export const SelectionBox = memo(({ onResizeHandlePointerDown }: SelectionBoxProps) => {
+export const SelectionBox = memo(({ onResizeHandlePointerDown, onSelectionPointerDown }: SelectionBoxProps) => {
     
     // Get layer
     const soleLayerId = useSelf((me) => 
@@ -34,7 +35,7 @@ export const SelectionBox = memo(({ onResizeHandlePointerDown }: SelectionBoxPro
         <>
             {/* Selected rectangle highlighted */}
             <rect
-                className="fill-transparent stroke-blue-500 stroke-1 pointer-events-none"
+                className="fill-transparent stroke-blue-500 stroke-1 pointer-events-auto"
                 style={{
                     transform: `translate(${bounds.x}px, ${bounds.y}px)`,
                 }}
@@ -42,6 +43,7 @@ export const SelectionBox = memo(({ onResizeHandlePointerDown }: SelectionBoxPro
                 y={0}
                 width={bounds.width}
                 height={bounds.height}
+                onPointerDown={onSelectionPointerDown}
             />
 
             {/* Adding little rectangles at corners and edges depicting it can be resized */}
