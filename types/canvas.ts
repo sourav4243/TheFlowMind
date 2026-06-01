@@ -128,7 +128,11 @@ export type CanvasState =
             current: Point;
             previousMode?: CanvasMode;
             previousLayerType?: LayerType.Ellipse | LayerType.Rectangle | LayerType.Text | LayerType.Note;
-    };
+        }
+    |   {
+            mode: CanvasMode.LassoSelection;
+            points: Point[];
+        };
 
 export enum CanvasMode {
     None,
@@ -140,6 +144,7 @@ export enum CanvasMode {
     Pencil,
     Eraser,
     TranslatingCamera,
+    LassoSelection,
 };
 
 export type Layer = EllipseLayer | RectangleLayer | PathLayer | TextLayer | NoteLayer;

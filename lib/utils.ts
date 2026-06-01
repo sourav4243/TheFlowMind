@@ -127,6 +127,91 @@ export function findIntersectingLayersWithRectangle(
   return ids;
 };
 
+export function pointInPolygon(point: Point, polygon: Point[]) {
+  let isInside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const xi = polygon[i].x, yi = polygon[i].y;
+      const xj = polygon[j].x, yj = polygon[j].y;
+      const intersect = ((yi > point.y) !== (yj > point.y)) &&
+          (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi);
+      if (intersect) isInside = !isInside;
+  }
+  return isInside;
+}
+
+export function findIntersectingLayersWithLasso(
+  layerIds: readonly string[] | null,
+  layers: ReadonlyMap<string, Layer>,
+  lassoPoints: Point[],
+) {
+  const ids = [];
+  
+  if (!layerIds || lassoPoints.length === 0) {
+    return [];
+  }
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const pt of lassoPoints) {
+    if (pt.x < minX) minX = pt.x;
+    if (pt.y < minY) minY = pt.y;
+    if (pt.x > maxX) maxX = pt.x;
+    if (pt.y > maxY) maxY = pt.y;
+  }
+  const lassoRect = { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+
+  for (const layerId of layerIds) {
+    const layer = layers.get(layerId);
+
+    if (layer == null) {
+      continue;
+    }
+
+    const { x, y, height, width } = layer;
+
+    if (
+      lassoRect.x + lassoRect.width < x   ||
+      lassoRect.x > x + width        ||
+      lassoRect.y + lassoRect.height < y   ||
+      lassoRect.y > y + height
+    ) {
+      continue;
+    }
+
+    if (layer.type === LayerType.Path) {
+      let pathIntersects = false;
+      for (const p of layer.points) {
+        const absX = x + p[0];
+        const absY = y + p[1];
+        if (pointInPolygon({ x: absX, y: absY }, lassoPoints)) {
+          pathIntersects = true;
+          break;
+        }
+      }
+      if (pathIntersects) {
+        ids.push(layerId);
+      }
+      continue;
+    }
+
+    const corners = [
+        { x, y },
+        { x: x + width, y },
+        { x: x + width, y: y + height },
+        { x, y: y + height }
+    ];
+    let intersects = corners.some(corner => pointInPolygon(corner, lassoPoints));
+
+    if (!intersects) {
+        intersects = lassoPoints.some(pt => pt.x >= x && pt.x <= x + width && pt.y >= y && pt.y <= y + height);
+    }
+
+    if (intersects) {
+      ids.push(layerId);
+    }
+  }
+  return ids;
+};
+
 export function getConstrastingTextColor(color: Color) {
   const luminance = 0.299 * color.r + 0.587 * color.g + 0.114 * color.b;
 

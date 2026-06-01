@@ -1,4 +1,4 @@
-import { Circle, MousePointer2, Pencil, Redo2, Square, StickyNote, Type, Undo2, Eraser } from "lucide-react";
+import { Circle, MousePointer2, Pencil, Redo2, Square, StickyNote, Type, Undo2, Eraser, LassoSelect } from "lucide-react";
 
 import { ToolButton } from "./ToolButton";
 import { ColorPicker, PenColorPicker } from "./ColorPicker";
@@ -41,6 +41,14 @@ export const Toolbar = ({
                         canvasState.mode === CanvasMode.SelectionNet ||
                         canvasState.mode === CanvasMode.Pressing ||
                         canvasState.mode === CanvasMode.Resizing
+                    }
+                />
+                <ToolButton 
+                    label="Lasso Select"
+                    icon={LassoSelect}
+                    onClick={() => setCanvasState({mode: CanvasMode.LassoSelection, points: []})}
+                    isActive={
+                        canvasState.mode === CanvasMode.LassoSelection
                     }
                 />
                 <ToolButton 

@@ -14,7 +14,7 @@ import {
     useSelf,
     useUpdateMyPresence,
 } from "@liveblocks/react";
-import { colorToCss, connectionIdToColor, findIntersectingLayersWithRectangle, penPointsToPathLayer, pointerEventToCanvasPoint, resizeBounds } from "@/lib/utils";
+import { colorToCss, connectionIdToColor, findIntersectingLayersWithRectangle, findIntersectingLayersWithLasso, penPointsToPathLayer, pointerEventToCanvasPoint, resizeBounds } from "@/lib/utils";
 import { Camera, CanvasMode, CanvasState, Color, LayerType, Point, Side, XYWH } from "@/types/canvas";
 import { useDisableScrollBounce } from "@/hooks/use-disable-scroll-debounce";
 import { useDeleteLayers } from "@/hooks/use-delete-layers";
@@ -165,6 +165,30 @@ export const Canvas = ({boardId} : CanvasProps) => {
         setMyPresence({ selection: ids });
     }, [layerIds]);
 
+
+    // update lasso selection
+    const updateLassoSelection = useMutation((
+        { storage, setMyPresence },
+        current: Point,
+    ) => {
+        if (canvasStateRef.current.mode !== CanvasMode.LassoSelection) return;
+        
+        const currentPoints = canvasStateRef.current.points;
+        const lastPoint = currentPoints.length > 0 ? currentPoints[currentPoints.length - 1] : null;
+        
+        // Add point if distance is > 5 to avoid too many points
+        if (!lastPoint || Math.abs(current.x - lastPoint.x) + Math.abs(current.y - lastPoint.y) > 5) {
+            const newPoints = [...currentPoints, current];
+            setCanvasState({
+                mode: CanvasMode.LassoSelection,
+                points: newPoints,
+            });
+
+            const layers = storage.get("layers").toImmutable();
+            const ids = findIntersectingLayersWithLasso(layerIds, layers, newPoints);
+            setMyPresence({ selection: ids });
+        }
+    }, [layerIds]);
 
     // multi layer selection
     const startMultiSelection = useCallback((
@@ -342,6 +366,10 @@ export const Canvas = ({boardId} : CanvasProps) => {
             }
         } else if (canvasState.mode === CanvasMode.Pencil) {
             continueDrawing(current, e);
+        } else if (canvasState.mode === CanvasMode.LassoSelection) {
+            if (e.buttons === 1) {
+                updateLassoSelection(current);
+            }
         } else if (canvasState.mode === CanvasMode.TranslatingCamera) {
             setCamera((camera) => ({
                 x: camera.x + e.movementX,
@@ -352,7 +380,7 @@ export const Canvas = ({boardId} : CanvasProps) => {
         }
 
         updateMyPresence({ cursor: current });
-    }, [camera, canvasState, startMultiSelection, translateSelectedLayer, updateSelectionNet, resizeSelectedLayer, eraseIntersecting, continueDrawing, updateMyPresence]);
+    }, [camera, canvasState, startMultiSelection, translateSelectedLayer, updateSelectionNet, updateLassoSelection, resizeSelectedLayer, eraseIntersecting, continueDrawing, updateMyPresence]);
 
     const onPointerLeave = useCallback(() => {
         updateMyPresence({ cursor: null });
@@ -387,6 +415,11 @@ export const Canvas = ({boardId} : CanvasProps) => {
             return;
         }
 
+        if (canvasState.mode === CanvasMode.LassoSelection) {
+            setCanvasState({ mode: CanvasMode.LassoSelection, points: [point] });
+            return;
+        }
+
         setCanvasState({ origin: point, mode: CanvasMode.Pressing });
     }, [camera, canvasState.mode, setCanvasState, startDrawing, eraseIntersecting]);
 
@@ -399,6 +432,11 @@ export const Canvas = ({boardId} : CanvasProps) => {
             unselectLayers();
             setCanvasState({
                 mode: CanvasMode.None,
+            });
+        } else if (canvasState.mode === CanvasMode.LassoSelection) {
+            setCanvasState({
+                mode: CanvasMode.LassoSelection,
+                points: [],
             });
         } else if (canvasState.mode ===  CanvasMode.Pencil) {
             insertPath();
@@ -620,6 +658,14 @@ export const Canvas = ({boardId} : CanvasProps) => {
                             y={Math.min(canvasState.origin.y, canvasState.current.y)}
                             width={Math.abs(canvasState.origin.x - canvasState.current.x)}
                             height={Math.abs(canvasState.origin.y - canvasState.current.y)}
+                        />
+                    )}
+
+                    {canvasState.mode === CanvasMode.LassoSelection && canvasState.points.length > 0 && (
+                        <polygon
+                            points={canvasState.points.map(p => `${p.x},${p.y}`).join(" ")}
+                            className="fill-blue-500/5 stroke-blue-500 stroke-1"
+                            strokeDasharray="4 2"
                         />
                     )}
 
