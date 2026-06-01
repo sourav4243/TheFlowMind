@@ -1,7 +1,7 @@
 "use client";
 
 import { nanoid } from "nanoid";
-import { useCallback, useMemo, useState, useEffect } from "react";
+import { useCallback, useMemo, useState, useEffect, useRef } from "react";
 import { LiveObject } from "@liveblocks/node";
 
 import { 
@@ -44,6 +44,12 @@ export const Canvas = ({boardId} : CanvasProps) => {
     })
 
     const [camera, setCamera] = useState<Camera>({x:0, y:0, scale: 1})
+
+    // Create refs for state to be used in stable callbacks without triggering re-renders
+    const cameraRef = useRef(camera);
+    const canvasStateRef = useRef(canvasState);
+    cameraRef.current = camera;
+    canvasStateRef.current = canvasState;
     const [lastUsedPenSize, setLastUsedPenSize] = useState<number>(8);
     const [lastUsedColor, setLastUsedColor] = useState<Color>({
         r: 0,
@@ -432,9 +438,10 @@ export const Canvas = ({boardId} : CanvasProps) => {
         e: React.PointerEvent,
         layerId: string,
     ) => {
+        const currentMode = canvasStateRef.current.mode;
         if (
-            canvasState.mode === CanvasMode.Pencil ||
-            canvasState.mode === CanvasMode.Inserting ||
+            currentMode === CanvasMode.Pencil ||
+            currentMode === CanvasMode.Inserting ||
             e.button === 2 ||
             e.button === 1
         ) {
@@ -444,7 +451,7 @@ export const Canvas = ({boardId} : CanvasProps) => {
         history.pause();
         e.stopPropagation();
 
-        const point = pointerEventToCanvasPoint(e, camera);
+        const point = pointerEventToCanvasPoint(e, cameraRef.current);
 
         if (!self.presence.selection.includes(layerId)) {
             setMyPresence({ selection: [layerId]}, {addToHistory: true});
@@ -452,15 +459,14 @@ export const Canvas = ({boardId} : CanvasProps) => {
         setCanvasState({ mode: CanvasMode.Translating, current: point});
     }, [
         setCanvasState, 
-        camera,
         history, 
-        canvasState.mode,
     ]);
 
     const onSelectionPointerDown = useCallback((e: React.PointerEvent) => {
+        const currentMode = canvasStateRef.current.mode;
         if (
-            canvasState.mode === CanvasMode.Pencil ||
-            canvasState.mode === CanvasMode.Inserting ||
+            currentMode === CanvasMode.Pencil ||
+            currentMode === CanvasMode.Inserting ||
             e.button === 2 ||
             e.button === 1
         ) {
@@ -470,9 +476,9 @@ export const Canvas = ({boardId} : CanvasProps) => {
         history.pause();
         e.stopPropagation();
 
-        const point = pointerEventToCanvasPoint(e, camera);
+        const point = pointerEventToCanvasPoint(e, cameraRef.current);
         setCanvasState({ mode: CanvasMode.Translating, current: point });
-    }, [canvasState.mode, camera, history, setCanvasState]);
+    }, [history, setCanvasState]);
 
     const selections = useOthersMapped((otherUser) => otherUser.presence.selection);
 
