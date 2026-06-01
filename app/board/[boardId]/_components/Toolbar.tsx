@@ -1,8 +1,9 @@
-import { Circle, MousePointer2, Pencil, Redo2, Square, StickyNote, Type, Undo2 } from "lucide-react";
+import { Circle, MousePointer2, Pencil, Redo2, Square, StickyNote, Type, Undo2, Eraser } from "lucide-react";
 
 import { ToolButton } from "./ToolButton";
+import { ColorPicker, PenColorPicker } from "./ColorPicker";
 
-import { CanvasMode, CanvasState, LayerType } from "@/types/canvas";
+import { CanvasMode, CanvasState, LayerType, Color } from "@/types/canvas";
 
 interface ToolbarProps {
     canvasState: CanvasState;
@@ -11,6 +12,9 @@ interface ToolbarProps {
     redo: () => void;
     canUndo: boolean;
     canRedo: boolean;
+    lastUsedPenSize: number;
+    setLastUsedPenSize: (size: number) => void;
+    setLastUsedColor: (color: Color) => void;
 };
 
 export const Toolbar = ({
@@ -19,7 +23,10 @@ export const Toolbar = ({
     undo,
     redo,
     canUndo,
-    canRedo
+    canRedo,
+    lastUsedPenSize,
+    setLastUsedPenSize,
+    setLastUsedColor
 }: ToolbarProps) => {
     return (
         <div className="absolute top-[50%] -translate-y-[50%] left-2 flex flex-col gap-y-4">
@@ -94,6 +101,16 @@ export const Toolbar = ({
                         canvasState.mode === CanvasMode.Pencil
                     }
                 />
+                <ToolButton 
+                    label="Eraser"
+                    icon={Eraser}
+                    onClick={()  => setCanvasState({
+                        mode: CanvasMode.Eraser
+                    })}
+                    isActive={
+                        canvasState.mode === CanvasMode.Eraser
+                    }
+                />
             </div>
 
             <div className="bg-white rounded-md p-1.5 flex flex-col items-center shadow-md">
@@ -110,6 +127,26 @@ export const Toolbar = ({
                     isDisabled={!canRedo}
                 />
             </div>
+            
+            {canvasState.mode === CanvasMode.Pencil && (
+                <div className="bg-white rounded-md p-1.5 flex flex-col gap-y-1 items-center shadow-md">
+                    <button onClick={() => setLastUsedPenSize(4)} className={`w-6 h-6 rounded-full flex items-center justify-center hover:bg-neutral-100 ${lastUsedPenSize === 4 ? "bg-neutral-200" : ""}`}>
+                        <div className="w-1 h-1 bg-black rounded-full" />
+                    </button>
+                    <button onClick={() => setLastUsedPenSize(8)} className={`w-6 h-6 rounded-full flex items-center justify-center hover:bg-neutral-100 ${lastUsedPenSize === 8 ? "bg-neutral-200" : ""}`}>
+                        <div className="w-2 h-2 bg-black rounded-full" />
+                    </button>
+                    <button onClick={() => setLastUsedPenSize(16)} className={`w-6 h-6 rounded-full flex items-center justify-center hover:bg-neutral-100 ${lastUsedPenSize === 16 ? "bg-neutral-200" : ""}`}>
+                        <div className="w-4 h-4 bg-black rounded-full" />
+                    </button>
+                </div>
+            )}
+
+            {canvasState.mode === CanvasMode.Pencil && (
+                <div className="absolute left-full ml-2 top-[160px] bg-white rounded-md p-3 shadow-md flex flex-col gap-y-2">
+                    <PenColorPicker onChange={setLastUsedColor} />
+                </div>
+            )}
         </div>
     )
 }
