@@ -26,9 +26,10 @@ export function pointerEventToCanvasPoint(
   e: React.PointerEvent, 
   camera: Camera,
 ) {
+  const scale = camera.scale || 1;
   return {
-    x: Math.round(e.clientX) - camera.x,
-    y: Math.round(e.clientY) - camera.y,
+    x: (Math.round(e.clientX) - camera.x) / scale,
+    y: (Math.round(e.clientY) - camera.y) / scale,
   };
 };
 
@@ -94,6 +95,25 @@ export function findIntersectingLayersWithRectangle(
     }
 
     const { x, y, height, width } = layer;
+
+    if (layer.type === LayerType.Path) {
+      let pathIntersects = false;
+      for (const p of layer.points) {
+        const absX = x + p[0];
+        const absY = y + p[1];
+        if (
+          absX >= rect.x && absX <= rect.x + rect.width &&
+          absY >= rect.y && absY <= rect.y + rect.height
+        ) {
+          pathIntersects = true;
+          break;
+        }
+      }
+      if (pathIntersects) {
+        ids.push(layerId);
+      }
+      continue;
+    }
 
     if (
       rect.x + rect.width > x   &&
