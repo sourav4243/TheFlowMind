@@ -58,6 +58,20 @@ export const Canvas = ({boardId} : CanvasProps) => {
         b: 0,
     });
     
+    // Prevent default browser pinch-to-zoom (which zooms the entire UI)
+    useEffect(() => {
+        const preventDefaultPinchZoom = (e: WheelEvent) => {
+            if (e.ctrlKey) {
+                e.preventDefault();
+            }
+        };
+        // Needs to be passive: false to allow e.preventDefault()
+        document.addEventListener("wheel", preventDefaultPinchZoom, { passive: false });
+        return () => {
+            document.removeEventListener("wheel", preventDefaultPinchZoom);
+        };
+    }, []);
+    
     const updateMyPresence = useUpdateMyPresence();
 
     useDisableScrollBounce();
@@ -371,19 +385,56 @@ export const Canvas = ({boardId} : CanvasProps) => {
     }, [camera.scale]);
 
     const onWheel = useCallback((e: React.WheelEvent) => {
-        setCamera((camera) => {
-            const scaleAdjust = e.deltaY * -0.001;
-            const newScale = Math.min(Math.max((camera.scale || 1) + scaleAdjust, 0.1), 5); 
-            
-            const canvasPointX = (e.clientX - camera.x) / (camera.scale || 1);
-            const canvasPointY = (e.clientY - camera.y) / (camera.scale || 1);
-            
-            return {
-                x: e.clientX - canvasPointX * newScale,
-                y: e.clientY - canvasPointY * newScale,
-                scale: newScale
-            };
-        });
+        // 1. Touchpad Pinch-to-Zoom (Browsers send ctrlKey=true for pinch gestures)
+        if (e.ctrlKey) {
+            setCamera((camera) => {
+                // Pinch deltas are smaller, so we use a larger multiplier (-0.01)
+                const scaleAdjust = e.deltaY * -0.01;
+                const newScale = Math.min(Math.max((camera.scale || 1) + scaleAdjust, 0.1), 5); 
+                
+                const canvasPointX = (e.clientX - camera.x) / (camera.scale || 1);
+                const canvasPointY = (e.clientY - camera.y) / (camera.scale || 1);
+                
+                return {
+                    x: e.clientX - canvasPointX * newScale,
+                    y: e.clientY - canvasPointY * newScale,
+                    scale: newScale
+                };
+            });
+            return;
+        }
+
+        // 2. Differentiate between Touchpad 2-finger Pan and Mouse Wheel Zoom
+        // Heuristic: Mouse wheels usually have deltaMode > 0 or large discrete deltaY (e.g., 100) and no deltaX.
+        // Touchpads have deltaMode === 0, often include deltaX, or smaller/fractional deltaY.
+        const isTouchpad = 
+            e.deltaMode === 0 && 
+            (Math.abs(e.deltaX) > 0 || Math.abs(e.deltaY) < 50 || e.deltaY % 1 !== 0);
+
+        if (isTouchpad) {
+            // Touchpad Pan (move canvas)
+            setCamera((camera) => ({
+                x: camera.x - e.deltaX,
+                y: camera.y - e.deltaY,
+                scale: camera.scale
+            }));
+        } else {
+            // Mouse Wheel Zoom
+            setCamera((camera) => {
+                // Mouse wheel deltas are large (e.g. 100), so we use a smaller multiplier (-0.001)
+                const scaleAdjust = e.deltaY * -0.001;
+                const newScale = Math.min(Math.max((camera.scale || 1) + scaleAdjust, 0.1), 5); 
+                
+                const canvasPointX = (e.clientX - camera.x) / (camera.scale || 1);
+                const canvasPointY = (e.clientY - camera.y) / (camera.scale || 1);
+                
+                return {
+                    x: e.clientX - canvasPointX * newScale,
+                    y: e.clientY - canvasPointY * newScale,
+                    scale: newScale
+                };
+            });
+        }
     }, []);
 
     const onPointerMove = useCallback((e: React.PointerEvent) => {
