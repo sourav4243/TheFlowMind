@@ -134,7 +134,7 @@ export const SelectionTools = memo(({
             {!isTextLayer && (
                 <ColorPicker onChange={setFill} />
             )}
-            <div className={`flex flex-col gap-y-0.5 pl-2 ${!isTextLayer ? "ml-2 border-l border-neutral-200" : ""}`}>
+            <div className={`flex items-center ${isTextLayer ? "flex-row gap-x-0.5" : "flex-col gap-y-0.5 pl-2 ml-2 border-l border-neutral-200"}`}>
                 <Hint label="Bring to front">
                     <Button
                         variant="board"
@@ -156,7 +156,7 @@ export const SelectionTools = memo(({
 
             </div>
 
-            <div className="flex items-center pl-2 ml-2 border-l border-neutral-200">
+            <div className={`flex items-center ${isTextLayer ? "ml-0.5" : "pl-2 ml-2 border-l border-neutral-200"}`}>
                 <Hint label="Delete">
                     <Button
                         variant="board"
