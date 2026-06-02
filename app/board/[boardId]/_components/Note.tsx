@@ -1,23 +1,5 @@
-import { Kalam } from "next/font/google";
-import ContentEditable, { ContentEditableEvent } from "react-contenteditable";
-
 import { NoteLayer } from "@/types/canvas";
-import { cn, colorToCss, getConstrastingTextColor } from "@/lib/utils";
-import { useMutation } from "@liveblocks/react";
-
-const font = Kalam({
-    subsets: ["latin"],
-    weight: ["400"],
-});
-
-const calculateFontSizeBasedOnBoxSize = (width: number, height: number) => {
-    const maxFontSize = 56;
-    const minFontSize = 20;
-    const scaleFactor = 0.15;
-    
-    const scaled = Math.min(width, height) * scaleFactor;
-    return Math.min(maxFontSize, Math.max(minFontSize, scaled));
-};
+import { colorToCss } from "@/lib/utils";
 
 interface NoteProps {
     id: string;
@@ -32,46 +14,74 @@ export const Note = ({
     onPointerDown,
     selectionColor,
 }: NoteProps) => {
-    const { x, y, width, height, fill, value } = layer;
+    const { x, y, width, height, fill } = layer;
 
-    const updateValue = useMutation((
-        { storage },
-        newValue: string,
-    ) => {
-        const liveLayers = storage.get("layers");
+    const fillColor = fill ? colorToCss(fill) : "#000";
 
-        liveLayers.get(id)?.set("value", newValue);
-    }, []);
-
-    const handleContentChange = (e: ContentEditableEvent) => {
-        updateValue(e.target.value);
-    };
+    // Dynamic Tab Dimensions
+    const tabWidth = Math.max(width * 0.42, 40); 
+    const tabHeight = Math.max(height * 0.10, 12); 
+    
+    // Dynamic Body Dimensions
+    const bodyHeight = Math.max(0, height - tabHeight);
+    
+    // Inner Transparent Rounded Rectangle Fill
+    const transparentFill = fill ? `rgba(${fill.r}, ${fill.g}, ${fill.b}, 0.15)` : "rgba(0,0,0,0.15)";
 
     return (
-        <foreignObject
-            x={x}
-            y={y}
-            width={width}
-            height={height}
-            onPointerDown={(e) =>  onPointerDown(e, id)}
+        <g
             style={{
-                outline: selectionColor? `1.5px solid ${selectionColor}` : "none",
+                transform: `translate(${x}px, ${y}px)`,
             }}
-            className="shadow-md drop-shadow-xl"
+            onPointerDown={(e) => onPointerDown(e, id)}
         >
-            <ContentEditable
-                html={value || "Text"}
-                onChange={handleContentChange}
-                className={cn(
-                    "h-full w-full flex items-center justify-center text-center outline-none",
-                    font.className
-                )}
-                style={{
-                    fontSize: calculateFontSizeBasedOnBoxSize(width, height),
-                    color: fill? getConstrastingTextColor(fill): "#000",
-                    backgroundColor: fill ? colorToCss(fill) : "#000",
-                }}
+            {/* 1. Large Rectangle (Main Body) */}
+            <rect 
+                x={0} 
+                y={tabHeight} 
+                width={width} 
+                height={bodyHeight} 
+                rx={5}
+                fill={fillColor}
+                className="drop-shadow-md"
             />
-        </foreignObject>
+            
+            {/* 2. Transparent Rounded Rectangle (Inside) */}
+            <rect 
+                x={20} 
+                y={tabHeight + 40} 
+                width={Math.max(0, width - 40)} 
+                height={Math.max(0, bodyHeight - 60)} 
+                rx={20}
+                fill={transparentFill}
+                stroke={fillColor}
+                strokeWidth={2}
+                className="drop-shadow-md"
+            />
+
+            {/* 3. Smaller Rectangle (Tab) - Placed over it */}
+            <rect 
+                x={(width - tabWidth) / 2} 
+                y={12} 
+                width={tabWidth} 
+                height={tabHeight + 8} // Expand slightly down to overlap the body
+                rx={5}
+                fill={fillColor}
+                className="drop-shadow-md"
+            />
+
+            {/* Selection Bounding Box */}
+            {selectionColor && (
+                <rect 
+                    x={0} 
+                    y={0} 
+                    width={width} 
+                    height={height} 
+                    fill="transparent" 
+                    stroke={selectionColor} 
+                    strokeWidth={1} 
+                />
+            )}
+        </g>
     )
 }
