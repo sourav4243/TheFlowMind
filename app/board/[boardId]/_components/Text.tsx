@@ -114,7 +114,7 @@ export const Text = ({
             }}
         >
             <ContentEditable
-                innerRef={innerRef}
+                innerRef={innerRef as any}
                 html={value || "Text"}
                 onChange={handleContentChange}
                 className={cn(
