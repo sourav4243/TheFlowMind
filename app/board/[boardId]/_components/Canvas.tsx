@@ -71,6 +71,7 @@ export const Canvas = ({boardId} : CanvasProps) => {
         layerType: LayerType.Ellipse | LayerType.Rectangle | LayerType.Text | LayerType.Note,
         position: Point,
         cornerRadius?: number,
+        transparent?: boolean,
     ) => {
         const liveLayers = storage.get("layers");
         if(liveLayers.size >= MAX_LAYERS) {
@@ -90,6 +91,7 @@ export const Canvas = ({boardId} : CanvasProps) => {
             width: 0,
             fill: lastUsedColor,
             ...(cornerRadius !== undefined ? { cornerRadius } : {}),
+            ...(transparent !== undefined ? { transparent } : {}),
         } as Layer)
 
         liveLayerIds.push(layerId);
@@ -438,7 +440,7 @@ export const Canvas = ({boardId} : CanvasProps) => {
         }
 
         if (canvasState.mode === CanvasMode.Inserting) {
-            const layerId = insertLayer(canvasState.layerType, point, canvasState.cornerRadius);
+            const layerId = insertLayer(canvasState.layerType, point, canvasState.cornerRadius, canvasState.transparent);
             if (layerId) {
                 if (canvasState.layerType === LayerType.Text) {
                     handleDefaultSize({ x: point.x, y: point.y, width: 0, height: 0 });

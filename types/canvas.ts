@@ -37,6 +37,7 @@ export type EllipseLayer = {
     width: number;
     fill: Color;
     value?:string;
+    transparent?: boolean;
 };
 
 export type PathLayer = {
@@ -114,6 +115,7 @@ export type CanvasState =
             mode: CanvasMode.Inserting,
             layerType: LayerType.Ellipse | LayerType.Rectangle | LayerType.Text | LayerType.Note;
             cornerRadius?: number;
+            transparent?: boolean;
         }
     |   {
             mode: CanvasMode.Resizing

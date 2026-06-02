@@ -1,4 +1,4 @@
-import { Circle, MousePointer2, Pencil, Redo2, Square, StickyNote, Type, Undo2, Eraser, LassoSelect, Squircle } from "lucide-react";
+import { Circle, MousePointer2, Pencil, Redo2, Square, StickyNote, Type, Undo2, Eraser, LassoSelect, Squircle, CircleDashed } from "lucide-react";
 
 import { ToolButton } from "./ToolButton";
 import { ColorPicker, PenColorPicker } from "./ColorPicker";
@@ -94,6 +94,7 @@ export const Toolbar = ({
                     onClick={()  => setCanvasState({
                         mode: CanvasMode.Inserting,
                         layerType: LayerType.Ellipse,
+                        transparent: false,
                     })}
                     isActive={
                         canvasState.mode === CanvasMode.Inserting &&
@@ -178,6 +179,31 @@ export const Toolbar = ({
                             cornerRadius: 20,
                         })}
                         isActive={canvasState.cornerRadius === 20}
+                    />
+                </div>
+            )}
+
+            {canvasState.mode === CanvasMode.Inserting && canvasState.layerType === LayerType.Ellipse && (
+                <div className="absolute left-full ml-2 top-[208px] bg-white rounded-md p-1.5 shadow-md flex flex-col gap-y-1">
+                    <ToolButton 
+                        label="Solid Circle"
+                        icon={Circle}
+                        onClick={() => setCanvasState({
+                            mode: CanvasMode.Inserting,
+                            layerType: LayerType.Ellipse,
+                            transparent: false,
+                        })}
+                        isActive={!canvasState.transparent}
+                    />
+                    <ToolButton 
+                        label="Transparent Circle"
+                        icon={CircleDashed}
+                        onClick={() => setCanvasState({
+                            mode: CanvasMode.Inserting,
+                            layerType: LayerType.Ellipse,
+                            transparent: true,
+                        })}
+                        isActive={!!canvasState.transparent}
                     />
                 </div>
             )}

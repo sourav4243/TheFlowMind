@@ -14,6 +14,11 @@ export const Ellipse = ({
     onPointerDown,
     selectionColor,
 }: EllipseProps) => {
+    const { transparent, fill } = layer;
+    const isTransparent = transparent === true;
+    const fillColor = fill ? colorToCss(fill) : "#000";
+    const transparentFill = fill ? `rgba(${fill.r}, ${fill.g}, ${fill.b}, 0.15)` : "rgba(0,0,0,0.15)";
+
     return (
         <ellipse
             className="drop-shadow-md"
@@ -25,9 +30,9 @@ export const Ellipse = ({
             cy={layer.height/2}
             rx={layer.width/2}
             ry={layer.height/2}
-            fill={layer.fill? colorToCss(layer.fill) : "#000"}
-            stroke={selectionColor || "transparent"}
-            strokeWidth="1"
+            fill={isTransparent ? transparentFill : fillColor}
+            stroke={selectionColor || (isTransparent ? fillColor : "transparent")}
+            strokeWidth={isTransparent ? 2 : 1}
         />
     )
 }
