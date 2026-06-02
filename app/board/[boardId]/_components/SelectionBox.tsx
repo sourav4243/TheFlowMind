@@ -23,7 +23,7 @@ export const SelectionBox = memo(({ onResizeHandlePointerDown, onSelectionPointe
     // Show resize handles only if resizable
     const isShowingHandles = useStorage((root) => 
         soleLayerId && root.layers.get(soleLayerId)?.type !== LayerType.Path
-    )
+    );
 
     const bounds = useSelectionBounds();
 
@@ -33,9 +33,9 @@ export const SelectionBox = memo(({ onResizeHandlePointerDown, onSelectionPointe
     
     return (
         <>
-            {/* Selected rectangle highlighted */}
+            {/* Invisible thicker rect for easier boundary dragging */}
             <rect
-                className="fill-transparent stroke-blue-500 stroke-1 pointer-events-auto"
+                className="fill-none stroke-transparent pointer-events-auto"
                 style={{
                     transform: `translate(${bounds.x}px, ${bounds.y}px)`,
                 }}
@@ -43,7 +43,20 @@ export const SelectionBox = memo(({ onResizeHandlePointerDown, onSelectionPointe
                 y={0}
                 width={bounds.width}
                 height={bounds.height}
+                strokeWidth={12} // 12px drag zone around the boundary
                 onPointerDown={onSelectionPointerDown}
+            />
+            
+            {/* Visible thin selection rectangle */}
+            <rect
+                className="fill-none stroke-blue-500 stroke-1 pointer-events-none"
+                style={{
+                    transform: `translate(${bounds.x}px, ${bounds.y}px)`,
+                }}
+                x={0}
+                y={0}
+                width={bounds.width}
+                height={bounds.height}
             />
 
             {/* Adding little rectangles at corners and edges depicting it can be resized */}
