@@ -1,10 +1,10 @@
 "use client";
 
-import { memo } from "react";
-import { Bold, Italic, Underline, List, CheckSquare, Type } from "lucide-react";
+import { memo, useEffect, useState } from "react";
+import { Bold, Italic, Underline, List } from "lucide-react";
 import { Hint } from "@/components/Hint";
 import { Button } from "@/components/ui/button";
-import { useSelf, useStorage } from "@liveblocks/react";
+import { useSelf, useStorage, useMutation } from "@liveblocks/react";
 import { CanvasMode, CanvasState, Color, LayerType } from "@/types/canvas";
 import { colorToCss } from "@/lib/utils";
 import { PenColorPicker } from "./ColorPicker";
@@ -28,8 +28,55 @@ export const TextToolbar = memo(({
         selectedLayerId ? root.layers.get(selectedLayerId)?.type : null
     );
 
+    // Get current font settings from layer
+    const fontFamily = useStorage((root) => {
+        if (!selectedLayerId) return undefined;
+        const layer = root.layers.get(selectedLayerId);
+        if (layer?.type === LayerType.Text) {
+            return layer.fontFamily;
+        }
+        return undefined;
+    });
+    
+    const fontSize = useStorage((root) => {
+        if (!selectedLayerId) return undefined;
+        const layer = root.layers.get(selectedLayerId);
+        if (layer?.type === LayerType.Text) {
+            return layer.fontSize;
+        }
+        return undefined;
+    });
+
     const isTextMode = canvasState.mode === CanvasMode.Inserting && canvasState.layerType === LayerType.Text;
     const isTextLayerSelected = selectedLayerType === LayerType.Text;
+
+    const [isBold, setIsBold] = useState(false);
+    const [isItalic, setIsItalic] = useState(false);
+    const [isUnderline, setIsUnderline] = useState(false);
+    const [isList, setIsList] = useState(false);
+
+    useEffect(() => {
+        const handleSelectionChange = () => {
+            setIsBold(document.queryCommandState("bold"));
+            setIsItalic(document.queryCommandState("italic"));
+            setIsUnderline(document.queryCommandState("underline"));
+            setIsList(document.queryCommandState("insertUnorderedList"));
+        };
+
+        document.addEventListener("selectionchange", handleSelectionChange);
+        return () => {
+            document.removeEventListener("selectionchange", handleSelectionChange);
+        };
+    }, []);
+
+    const updateLayerFont = useMutation(({ storage }, key: "fontFamily" | "fontSize", value: any) => {
+        if (!selectedLayerId) return;
+        const liveLayers = storage.get("layers");
+        const layer = liveLayers.get(selectedLayerId);
+        if (layer) {
+            layer.update({ [key]: value });
+        }
+    }, [selectedLayerId]);
 
     if (!isTextMode && !isTextLayerSelected) {
         return null;
@@ -38,8 +85,11 @@ export const TextToolbar = memo(({
     // Command executor for rich text
     const formatText = (command: string, value?: string) => {
         document.execCommand(command, false, value);
-        // Force the content editable to re-render or trigger an onChange
-        // We'll rely on the native DOM event bubbling to ContentEditable's onChange
+        // Force immediate UI update for active states
+        setIsBold(document.queryCommandState("bold"));
+        setIsItalic(document.queryCommandState("italic"));
+        setIsUnderline(document.queryCommandState("underline"));
+        setIsList(document.queryCommandState("insertUnorderedList"));
     };
 
     return (
@@ -70,8 +120,8 @@ export const TextToolbar = memo(({
             {/* Font Options */}
             <select 
                 className="h-8 px-2 rounded-md border border-neutral-200 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                onChange={(e) => formatText('fontName', e.target.value)}
-                defaultValue="Kalam"
+                onChange={(e) => updateLayerFont('fontFamily', e.target.value)}
+                value={fontFamily || "Kalam"}
             >
                 <option value="Kalam">Kalam</option>
                 <option value="Arial">Arial</option>
@@ -81,53 +131,43 @@ export const TextToolbar = memo(({
 
             <select 
                 className="h-8 px-2 rounded-md border border-neutral-200 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                onChange={(e) => formatText('fontSize', e.target.value)}
-                defaultValue="3"
+                onChange={(e) => updateLayerFont('fontSize', Number(e.target.value))}
+                value={fontSize || 16}
             >
-                <option value="1">10px</option>
-                <option value="2">13px</option>
-                <option value="3">16px</option>
-                <option value="4">18px</option>
-                <option value="5">24px</option>
-                <option value="6">32px</option>
-                <option value="7">48px</option>
+                <option value={10}>10px</option>
+                <option value={13}>13px</option>
+                <option value={16}>16px</option>
+                <option value={18}>18px</option>
+                <option value={24}>24px</option>
+                <option value={32}>32px</option>
+                <option value={48}>48px</option>
             </select>
 
             <div className="h-8 w-px bg-neutral-200 mx-1" />
 
             {/* Formatting Options */}
             <Hint label="Bold">
-                <Button variant="board" size="icon" onClick={() => formatText('bold')}>
+                <Button variant="board" size="icon" onPointerDown={(e) => e.preventDefault()} onClick={() => formatText('bold')} className={isBold ? "bg-neutral-200" : ""}>
                     <Bold className="w-4 h-4" />
                 </Button>
             </Hint>
 
             <Hint label="Italic">
-                <Button variant="board" size="icon" onClick={() => formatText('italic')}>
+                <Button variant="board" size="icon" onPointerDown={(e) => e.preventDefault()} onClick={() => formatText('italic')} className={isItalic ? "bg-neutral-200" : ""}>
                     <Italic className="w-4 h-4" />
                 </Button>
             </Hint>
 
             <Hint label="Underline">
-                <Button variant="board" size="icon" onClick={() => formatText('underline')}>
+                <Button variant="board" size="icon" onPointerDown={(e) => e.preventDefault()} onClick={() => formatText('underline')} className={isUnderline ? "bg-neutral-200" : ""}>
                     <Underline className="w-4 h-4" />
                 </Button>
             </Hint>
 
-            <div className="h-8 w-px bg-neutral-200 mx-1" />
+            {/* <div className="h-8 w-px bg-neutral-200 mx-1" /> */}
 
             {/* List Options */}
-            <Hint label="Bullet List">
-                <Button variant="board" size="icon" onClick={() => formatText('insertUnorderedList')}>
-                    <List className="w-4 h-4" />
-                </Button>
-            </Hint>
-            
-            <Hint label="Check List">
-                <Button variant="board" size="icon" onClick={() => formatText('insertHTML', '<input type="checkbox" />&nbsp;')}>
-                    <CheckSquare className="w-4 h-4" />
-                </Button>
-            </Hint>
+            {/* Removed Bullet List as requested */}
         </div>
     );
 });

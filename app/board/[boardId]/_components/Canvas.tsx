@@ -297,9 +297,32 @@ export const Canvas = ({boardId} : CanvasProps) => {
         const layer = liveLayers.get(self.presence.selection[0]);
 
         if (layer) {
+            if (layer.get("type") === LayerType.Text) {
+                // Text layers are auto-height based on content. Disable manual vertical resizing.
+                bounds.height = layer.get("height");
+                bounds.y = layer.get("y");
+            }
             layer.update(bounds);
         }
     }, [canvasState]);
+
+    const handleDefaultSize = useMutation(({ storage, self }, initialBounds: XYWH) => {
+        const liveLayers = storage.get("layers");
+        const layerId = self.presence.selection[0];
+        if (!layerId) return;
+        
+        const layer = liveLayers.get(layerId);
+        if (layer) {
+            const isText = layer.get("type") === LayerType.Text;
+            const width = isText ? 150 : 100;
+            const height = isText ? 32 : 100;
+            
+            layer.update({ 
+                width, 
+                height 
+            });
+        }
+    }, []);
 
 
     // Called when user presses on a resize handle of selection box
@@ -417,11 +440,16 @@ export const Canvas = ({boardId} : CanvasProps) => {
         if (canvasState.mode === CanvasMode.Inserting) {
             const layerId = insertLayer(canvasState.layerType, point, canvasState.cornerRadius);
             if (layerId) {
-                setCanvasState({
-                    mode: CanvasMode.Resizing,
-                    initialBounds: { x: point.x, y: point.y, width: 0, height: 0 },
-                    corner: Side.Bottom | Side.Right,
-                });
+                if (canvasState.layerType === LayerType.Text) {
+                    handleDefaultSize({ x: point.x, y: point.y, width: 0, height: 0 });
+                    setCanvasState({ mode: CanvasMode.None });
+                } else {
+                    setCanvasState({
+                        mode: CanvasMode.Resizing,
+                        initialBounds: { x: point.x, y: point.y, width: 0, height: 0 },
+                        corner: Side.Bottom | Side.Right,
+                    });
+                }
             }
             return;
         }
@@ -472,14 +500,7 @@ export const Canvas = ({boardId} : CanvasProps) => {
             if (canvasState.initialBounds && canvasState.initialBounds.width === 0 && canvasState.initialBounds.height === 0) {
                 const distance = Math.abs(point.x - canvasState.initialBounds.x) + Math.abs(point.y - canvasState.initialBounds.y);
                 if (distance < 5) { // Threshold for click
-                    // Resize to default size (100x100)
-                    const bounds = {
-                        x: canvasState.initialBounds.x,
-                        y: canvasState.initialBounds.y,
-                        width: 100,
-                        height: 100,
-                    };
-                    resizeSelectedLayer({ x: canvasState.initialBounds.x + 100, y: canvasState.initialBounds.y + 100 }); // Trigger resize mutation to 100x100
+                    handleDefaultSize(canvasState.initialBounds);
                 }
             }
             setCanvasState({ mode: CanvasMode.None });
@@ -514,6 +535,7 @@ export const Canvas = ({boardId} : CanvasProps) => {
         unselectLayers,
         applySelectionNet,
         applyLassoSelection,
+        handleDefaultSize,
     ]);
 
     // A function to allow selecting any layer/shape
