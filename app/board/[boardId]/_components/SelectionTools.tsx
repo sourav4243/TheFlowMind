@@ -4,9 +4,9 @@ import { memo } from "react";
 import { BringToFront, SendToBack, Trash2 } from "lucide-react";
 
 import { Hint } from "@/components/Hint";
-import { Camera, Color } from "@/types/canvas";
+import { Camera, Color, LayerType } from "@/types/canvas";
 import { Button } from "@/components/ui/button";
-import { useSelf, useMutation } from "@liveblocks/react";
+import { useSelf, useMutation, useStorage } from "@liveblocks/react";
 import { useDeleteLayers } from "@/hooks/use-delete-layers";
 import { useSelectionBounds } from "@/hooks/use-selection-bounds";
 import { ColorPicker } from "./ColorPicker";
@@ -21,6 +21,14 @@ export const SelectionTools = memo(({
     setLastUsedColor,
 }: SelectionToolsProps) => {
     const selection = useSelf((me) => me.presence.selection);
+
+    const isTextLayer = useStorage((root) => {
+        if (selection && selection.length === 1) {
+            const layer = root.layers.get(selection[0]);
+            return layer?.type === LayerType.Text;
+        }
+        return false;
+    });
 
     const sendBackward = useMutation(({ storage }) => {
         const liveLayerIds = storage.get("layerIds");
@@ -123,8 +131,10 @@ export const SelectionTools = memo(({
                 )`
             }}    
         >
-            <ColorPicker onChange={setFill} />
-            <div className="flex flex-col gap-y-0.5 pl-2 ml-2 border-l border-neutral-200">
+            {!isTextLayer && (
+                <ColorPicker onChange={setFill} />
+            )}
+            <div className={`flex flex-col gap-y-0.5 pl-2 ${!isTextLayer ? "ml-2 border-l border-neutral-200" : ""}`}>
                 <Hint label="Bring to front">
                     <Button
                         variant="board"

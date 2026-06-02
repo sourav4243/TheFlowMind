@@ -10,12 +10,19 @@ const font = Kalam({
     weight: ["400"],
 });
 
-const calculateFontSizeBasedOnBoxSize = (width: number, height: number) => {
-    const maxFontSize = 56;
-    const minFontSize = 20;
-    const scaleFactor = 0.3;
+const calculateFontSizeBasedOnBoxSize = (width: number, height: number, text: string) => {
+    const maxFontSize = 96;
+    const minFontSize = 10;
+    const scaleFactor = 0.5;
     
-    const scaled = Math.min(width, height) * scaleFactor;
+    const fontSizeBasedOnDimensions = Math.min(width, height) * scaleFactor;
+    
+    const strippedText = text ? text.replace(/<[^>]*>?/gm, '') : "";
+    const charCount = Math.max(strippedText.length, 1);
+    
+    const fontSizeBasedOnArea = Math.sqrt((width * height) / (charCount * 0.72));
+
+    const scaled = Math.min(fontSizeBasedOnDimensions, fontSizeBasedOnArea);
     return Math.min(maxFontSize, Math.max(minFontSize, scaled));
 };
 
@@ -62,11 +69,11 @@ export const Text = ({
                 html={value || "Text"}
                 onChange={handleContentChange}
                 className={cn(
-                    "h-full w-full flex items-center justify-center text-center drop-shadow-md outline-none",
+                    "h-full w-full drop-shadow-md outline-none text-center px-1 py-2",
                     font.className
                 )}
                 style={{
-                    fontSize: calculateFontSizeBasedOnBoxSize(width, height),
+                    fontSize: calculateFontSizeBasedOnBoxSize(width, height, value || "Text"),
                     color: fill? colorToCss(fill): "#000",
                 }}
             />

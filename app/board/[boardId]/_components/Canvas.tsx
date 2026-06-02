@@ -23,6 +23,7 @@ import { Info } from "./Info";
 import { Participants } from "./Participants";
 import { Toolbar } from "./Toolbar";
 import { SelectionTools } from "./SelectionTools";
+import { TextToolbar } from "./TextToolbar";
 import { LayerPreview } from "./LayerPreview"; 
 import { CursorPresense } from "./CursorsPresense";
 import { SelectionBox } from "./SelectionBox";
@@ -73,7 +74,7 @@ export const Canvas = ({boardId} : CanvasProps) => {
     ) => {
         const liveLayers = storage.get("layers");
         if(liveLayers.size >= MAX_LAYERS) {
-            return;
+            return null;
         }
 
         const liveLayerIds = storage.get("layerIds");
@@ -84,9 +85,9 @@ export const Canvas = ({boardId} : CanvasProps) => {
             type: layerType,
             x: position.x,
             y: position.y,
-            // height: layerType === LayerType.Text ? 500: 100,         // We can do like this to add diff size for diff type of layer
-            height: 100,
-            width: 100,
+            // Start with 0 width and height for click-and-drag
+            height: 0,
+            width: 0,
             fill: lastUsedColor,
             ...(cornerRadius !== undefined ? { cornerRadius } : {}),
         } as Layer)
@@ -95,7 +96,8 @@ export const Canvas = ({boardId} : CanvasProps) => {
         liveLayers.set(layerId, layer);
 
         setMyPresence({ selection: [layerId] }, { addToHistory: true });
-        setCanvasState({ mode: CanvasMode.None });
+        // Don't set state to None here, we will handle it in the caller
+        return layerId;
     }, [lastUsedColor]);
 
 
@@ -413,6 +415,14 @@ export const Canvas = ({boardId} : CanvasProps) => {
         }
 
         if (canvasState.mode === CanvasMode.Inserting) {
+            const layerId = insertLayer(canvasState.layerType, point, canvasState.cornerRadius);
+            if (layerId) {
+                setCanvasState({
+                    mode: CanvasMode.Resizing,
+                    initialBounds: { x: point.x, y: point.y, width: 0, height: 0 },
+                    corner: Side.Bottom | Side.Right,
+                });
+            }
             return;
         }
 
@@ -432,7 +442,7 @@ export const Canvas = ({boardId} : CanvasProps) => {
         }
 
         setCanvasState({ origin: point, mode: CanvasMode.Pressing });
-    }, [camera, canvasState.mode, setCanvasState, startDrawing, eraseIntersecting]);
+    }, [camera, canvasState, setCanvasState, startDrawing, eraseIntersecting]);
 
     // when pointer is up, call insertLayer() function
     const onPointerUp = useCallback((
@@ -457,8 +467,26 @@ export const Canvas = ({boardId} : CanvasProps) => {
             });
         } else if (canvasState.mode ===  CanvasMode.Pencil) {
             insertPath();
+        } else if (canvasState.mode === CanvasMode.Resizing) {
+            // Check if the user just clicked without dragging
+            if (canvasState.initialBounds && canvasState.initialBounds.width === 0 && canvasState.initialBounds.height === 0) {
+                const distance = Math.abs(point.x - canvasState.initialBounds.x) + Math.abs(point.y - canvasState.initialBounds.y);
+                if (distance < 5) { // Threshold for click
+                    // Resize to default size (100x100)
+                    const bounds = {
+                        x: canvasState.initialBounds.x,
+                        y: canvasState.initialBounds.y,
+                        width: 100,
+                        height: 100,
+                    };
+                    resizeSelectedLayer({ x: canvasState.initialBounds.x + 100, y: canvasState.initialBounds.y + 100 }); // Trigger resize mutation to 100x100
+                }
+            }
+            setCanvasState({ mode: CanvasMode.None });
         } else if (canvasState.mode === CanvasMode.Inserting) {
-            insertLayer(canvasState.layerType, point, canvasState.cornerRadius);
+            // This case shouldn't be hit anymore since we transition to Resizing onPointerDown,
+            // but just in case, we clear the mode.
+            setCanvasState({ mode: CanvasMode.None });
         } else if (canvasState.mode === CanvasMode.TranslatingCamera) {
             if (canvasState.previousMode === CanvasMode.Inserting && canvasState.previousLayerType) {
                 setCanvasState({ mode: CanvasMode.Inserting, layerType: canvasState.previousLayerType });
@@ -615,6 +643,12 @@ export const Canvas = ({boardId} : CanvasProps) => {
 
             <SelectionTools
                 camera={camera}
+                setLastUsedColor={onChangeColor}
+            />
+
+            <TextToolbar
+                canvasState={canvasState}
+                lastUsedColor={lastUsedColor}
                 setLastUsedColor={onChangeColor}
             />
 
